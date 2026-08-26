@@ -252,10 +252,10 @@ tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remo
 <span class="music-toggle__label">Background Music</span>
 <span class="music-toggle__state">Play</span>
 </button>
-<script id="background-music-v3">
+<script id="background-music-v4">
 (()=>{
+  // Single music source only: Paris Spring jazz.
   const VIDEO_ID='k6CI60kNqug';
-  const PLAYLIST_ID='';
   const button=document.getElementById('music-toggle');
   const stateLabel=button.querySelector('.music-toggle__state');
   const frame=document.getElementById('background-music-player');
@@ -273,8 +273,9 @@ tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remo
       rel:'0',
       loop:'1',
       playlist:VIDEO_ID,
-      origin:location.origin && location.origin.startsWith('http') ? location.origin : ''
+      enablejsapi:'1'
     });
+    if(location.origin && location.origin.startsWith('http')) params.set('origin',location.origin);
     return 'https://www.youtube.com/embed/'+VIDEO_ID+'?'+params.toString();
   };
 
@@ -287,12 +288,12 @@ tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remo
   };
 
   const command=(func)=>{
-    try{frame.contentWindow.postMessage(JSON.stringify({event:'command',func,args:[]}), 'https://www.youtube.com');}catch(_){ }
+    try{
+      frame.contentWindow.postMessage(JSON.stringify({event:'command',func,args:[]}), 'https://www.youtube.com');
+    }catch(_){ }
   };
 
   const loadAndPlay=()=>{
-    // Reloading the iframe inside a genuine user gesture is substantially more reliable
-    // than issuing playVideo before YouTube's player is ready.
     frame.src=embedUrl();
     loaded=true;
     setPlaying(true);
@@ -302,24 +303,17 @@ tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remo
   const resumeMusic=()=>{
     if(!loaded){ loadAndPlay(); return; }
     command('playVideo');
-    // If the player was not ready, a second user-gesture reload ensures playback starts.
-    setTimeout(()=>{ if(playing) command('playVideo'); },250);
+    setTimeout(()=>{ if(playing) command('playVideo'); },300);
     setPlaying(true);
   };
 
-  // Best-effort audible autoplay. Modern browsers may block it.
-  frame.src=embedUrl();
-  loaded=true;
-  setPlaying(true);
+  // Best-effort autoplay. If the browser blocks audible autoplay, first interaction retries it.
+  loadAndPlay();
 
-  // Guaranteed fallback: the visitor's first click/tap/key interaction retries playback
-  // as a user-initiated action. This runs once and does not interfere with navigation.
   const unlock=()=>{
-    if(!playing || !loaded) loadAndPlay();
-    else {
-      frame.src=embedUrl();
-      setPlaying(true);
-    }
+    frame.src=embedUrl();
+    loaded=true;
+    setPlaying(true);
     window.removeEventListener('pointerdown',unlock,true);
     window.removeEventListener('keydown',unlock,true);
   };
