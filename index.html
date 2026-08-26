@@ -239,22 +239,38 @@ tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remo
 (()=>{const box=document.getElementById('lightbox'),view=box.querySelector('img');document.querySelectorAll('.photo img,.place-card img,.school-photo img,.dest img,.home-card img').forEach(img=>img.addEventListener('click',()=>{view.src=img.src;box.classList.add('open');box.setAttribute('aria-hidden','false')}));const close=()=>{box.classList.remove('open');box.setAttribute('aria-hidden','true');view.removeAttribute('src')};box.querySelector('button').onclick=close;box.addEventListener('click',e=>{if(e.target===box)close()});document.addEventListener('keydown',e=>{if(e.key==='Escape')close()})})();
 </script>
 <div aria-hidden="true" class="background-music-player-shell">
-<iframe allow="autoplay; encrypted-media" id="background-music-player" referrerpolicy="strict-origin-when-cross-origin" src="https://www.youtube.com/embed/9TrmEyi114E?autoplay=1&mute=0&enablejsapi=1&controls=0&disablekb=1&fs=0&playsinline=1&rel=0&loop=1&list=PL8AX3qq_ypm39hbazhrayrWpJg40Skc3U" tabindex="-1" title="Background music"></iframe>
+<iframe allow="autoplay; encrypted-media" id="background-music-player" referrerpolicy="strict-origin-when-cross-origin" tabindex="-1" title="Background music"></iframe>
 </div>
 <button aria-label="Play background music" aria-pressed="false" class="music-toggle" id="music-toggle" type="button">
 <span aria-hidden="true" class="music-toggle__icon">♪</span>
 <span class="music-toggle__label">Background Music</span>
 <span class="music-toggle__state">Play</span>
 </button>
-<script id="background-music-v2">
+<script id="background-music-v3">
 (()=>{
   const VIDEO_ID='9TrmEyi114E';
   const PLAYLIST_ID='PL8AX3qq_ypm39hbazhrayrWpJg40Skc3U';
   const button=document.getElementById('music-toggle');
   const stateLabel=button.querySelector('.music-toggle__state');
   const frame=document.getElementById('background-music-player');
-  let started=true;
-  let playing=true;
+  let playing=false;
+  let loaded=false;
+
+  const embedUrl=()=>{
+    const params=new URLSearchParams({
+      autoplay:'1',
+      mute:'0',
+      controls:'0',
+      disablekb:'1',
+      fs:'0',
+      playsinline:'1',
+      rel:'0',
+      loop:'1',
+      list:PLAYLIST_ID,
+      origin:location.origin && location.origin.startsWith('http') ? location.origin : ''
+    });
+    return 'https://www.youtube.com/embed/'+VIDEO_ID+'?'+params.toString();
+  };
 
   const setPlaying=(value)=>{
     playing=value;
@@ -265,42 +281,48 @@ tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remo
   };
 
   const command=(func)=>{
-    try{
-      frame.contentWindow.postMessage(JSON.stringify({event:'command',func:func,args:[]}), '*');
-    }catch(_){ }
+    try{frame.contentWindow.postMessage(JSON.stringify({event:'command',func,args:[]}), 'https://www.youtube.com');}catch(_){ }
   };
 
-  const startMusic=()=>{
-    if(!started){
-      started=true;
-      const params=new URLSearchParams({
-        autoplay:'1',
-        enablejsapi:'1',
-        controls:'0',
-        disablekb:'1',
-        fs:'0',
-        playsinline:'1',
-        rel:'0',
-        loop:'1',
-        list:PLAYLIST_ID
-      });
-      frame.src='https://www.youtube.com/embed/'+VIDEO_ID+'?'+params.toString();
-      setPlaying(true);
-      return;
-    }
-    command('playVideo');
+  const loadAndPlay=()=>{
+    // Reloading the iframe inside a genuine user gesture is substantially more reliable
+    // than issuing playVideo before YouTube's player is ready.
+    frame.src=embedUrl();
+    loaded=true;
     setPlaying(true);
   };
 
-  const pauseMusic=()=>{
-    command('pauseVideo');
-    setPlaying(false);
+  const pauseMusic=()=>{ command('pauseVideo'); setPlaying(false); };
+  const resumeMusic=()=>{
+    if(!loaded){ loadAndPlay(); return; }
+    command('playVideo');
+    // If the player was not ready, a second user-gesture reload ensures playback starts.
+    setTimeout(()=>{ if(playing) command('playVideo'); },250);
+    setPlaying(true);
   };
 
+  // Best-effort audible autoplay. Modern browsers may block it.
+  frame.src=embedUrl();
+  loaded=true;
   setPlaying(true);
 
-  button.addEventListener('click',()=>{
-    playing?pauseMusic():startMusic();
+  // Guaranteed fallback: the visitor's first click/tap/key interaction retries playback
+  // as a user-initiated action. This runs once and does not interfere with navigation.
+  const unlock=()=>{
+    if(!playing || !loaded) loadAndPlay();
+    else {
+      frame.src=embedUrl();
+      setPlaying(true);
+    }
+    window.removeEventListener('pointerdown',unlock,true);
+    window.removeEventListener('keydown',unlock,true);
+  };
+  window.addEventListener('pointerdown',unlock,true);
+  window.addEventListener('keydown',unlock,true);
+
+  button.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    playing?pauseMusic():resumeMusic();
   });
 })();
 </script>
