@@ -254,7 +254,8 @@ tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remo
 </button>
 <script id="background-music-v3">
 (()=>{
-  const VIDEO_ID='Qs-ut37g60I';
+  const VIDEO_ID='';
+  const PLAYLIST_ID='PLDd_GGDtzaWoxk6XPdx-ddwn1zOuX-xLY';
   const button=document.getElementById('music-toggle');
   const stateLabel=button.querySelector('.music-toggle__state');
   const frame=document.getElementById('background-music-player');
@@ -271,10 +272,11 @@ tabs.forEach(t=>t.addEventListener('click',()=>{tabs.forEach(x=>x.classList.remo
       playsinline:'1',
       rel:'0',
       loop:'1',
-      playlist:VIDEO_ID,
+      listType:'playlist',
+      list:PLAYLIST_ID,
       origin:location.origin && location.origin.startsWith('http') ? location.origin : ''
     });
-    return 'https://www.youtube.com/embed/'+VIDEO_ID+'?'+params.toString();
+    return 'https://www.youtube.com/embed/videoseries?'+params.toString();
   };
 
   const setPlaying=(value)=>{
